@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Zeeshan HQ — Personal Digital Headquarters
 
 React + Vite + React Router on the front, Supabase (Postgres, Auth, Storage) behind it, deployed on Netlify.
@@ -93,3 +94,7 @@ Seed text is placeholder wording and invents no clients, numbers or achievements
 
 - Run `supabase/phase4.sql` (adds `projects.sections`). In Admin → Projects → *Case study* you can add, reorder and remove your own sections (title + text); they appear after "Result" on the project page. Sections missing a title or text are dropped on save.
 - Admin → Settings → Site & brand → *Other profiles*: one `Label | URL` per line (X, YouTube, Instagram…). Only http(s) links are shown, in the footer and on Contact.
+=======
+# developer-zeeshan
+Personal developer portfolio of Muhammad Zeeshan Haider: digital systems, educational platforms, college systems and web applications.
+>>>>>>> a7c41e5bcb9557cb47f2a9ad973b65c442dfa4e9
