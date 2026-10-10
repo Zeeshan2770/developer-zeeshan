@@ -1,0 +1,26 @@
+{
+  "name": "zeeshan-hq",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test tests/unit.test.mjs",
+    "test:db": "node --test tests/db.test.mjs",
+    "test:all": "node --test tests/unit.test.mjs tests/db.test.mjs",
+    "test:e2e": "python3 -I tests/e2e/public_smoke.py && python3 -I tests/e2e/admin_smoke.py"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  }
+}
