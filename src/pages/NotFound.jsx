@@ -4,7 +4,7 @@ import SEO from '../components/SEO';
 export default function NotFound() {
   return (
     <section className="page-hero">
-      <SEO title="Page not found" />
+      <SEO title="Page not found" noindex />
       <div className="wrap center">
         <p className="mono kicker">404</p>
         <h1>This page does not exist.</h1>

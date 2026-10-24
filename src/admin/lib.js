@@ -24,25 +24,27 @@ export const logActivity = (action, ref_table, ref_id) => {
 // ---- uploads: MIME + size validation, safe filenames, folder per kind, client-side optimization ----
 export const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml'];
 export const MAX_BYTES = 5 * 1024 * 1024;
-const MAX_DIMENSION = 1920;
+const MAX_DIMENSION = 1600;
+// Kinds that are displayed small never need a big file. The profile portrait is the first thing visitors see, so keep it light.
+const MAX_BY_KIND = { profile: 1100, logo: 256, testimonial: 320 };
 
 export const safeName = (name) => {
   const base = name.replace(/\.[^.]+$/, '');
   return `${slugify(base).slice(0, 60) || 'file'}-${Date.now().toString(36)}`;
 };
 
-async function optimize(file) {
+async function optimize(file, kind = 'other') {
   // SVG and AVIF stay untouched; raster images are downscaled and converted to WebP.
   if (file.type === 'image/svg+xml' || file.type === 'image/avif') return { blob: file, ext: file.type === 'image/svg+xml' ? 'svg' : 'avif', type: file.type };
   try {
     const bmp = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_DIMENSION / Math.max(bmp.width, bmp.height));
+    const scale = Math.min(1, (MAX_BY_KIND[kind] || MAX_DIMENSION) / Math.max(bmp.width, bmp.height));
     const w = Math.round(bmp.width * scale);
     const h = Math.round(bmp.height * scale);
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
-    const blob = await new Promise((res) => canvas.toBlob(res, 'image/webp', 0.84));
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/webp', kind === 'profile' ? 0.8 : 0.82));
     if (blob && blob.size < file.size) return { blob, ext: 'webp', type: 'image/webp' };
   } catch { /* fall through to original */ }
   return { blob: file, ext: file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1], type: file.type };
@@ -102,7 +104,7 @@ export async function uploadVideo(file, kind = 'project') {
 export async function uploadImage(file, kind = 'other', alt = '') {
   if (!ALLOWED_MIME.includes(file.type)) throw new Error('Unsupported file type. Use JPG, PNG, WebP, AVIF or SVG.');
   if (file.size > MAX_BYTES) throw new Error('File is larger than 5 MB.');
-  const { blob, ext, type } = await optimize(file);
+  const { blob, ext, type } = await optimize(file, kind);
   const path = `${kind}/${safeName(file.name)}.${ext}`;
   const { error } = await supabase.storage.from('media').upload(path, blob, { contentType: type, upsert: false, cacheControl: '31536000' });
   if (error) throw error;

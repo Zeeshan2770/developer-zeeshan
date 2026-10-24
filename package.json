@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
-    "test": "node --test tests/unit.test.mjs",
+    "test": "node --test tests/unit.test.mjs tests/prerender.test.mjs",
     "test:db": "node --test tests/db.test.mjs",
-    "test:all": "node --test tests/unit.test.mjs tests/db.test.mjs",
-    "test:e2e": "python3 -I tests/e2e/public_smoke.py && python3 -I tests/e2e/admin_smoke.py"
+    "test:all": "node --test tests/unit.test.mjs tests/prerender.test.mjs tests/db.test.mjs",
+    "test:e2e": "python3 -I tests/e2e/public_smoke.py && python3 -I tests/e2e/admin_smoke.py && python3 -I tests/e2e/intro_smoke.py"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

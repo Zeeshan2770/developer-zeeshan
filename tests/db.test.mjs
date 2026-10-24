@@ -44,6 +44,8 @@ before(async () => {
   await db.exec(sql('phase2.sql'));
   await db.exec(sql('phase3.sql'));
   await db.exec(sql('phase4.sql'));
+  await db.exec(sql('phase7_seo.sql'));
+  await db.exec(sql('phase8_email.sql'));
   // Supabase grants these by default on the public schema.
   await db.exec(`
     grant usage on schema public to anon, authenticated;
@@ -54,6 +56,9 @@ before(async () => {
     insert into auth.users (id, raw_user_meta_data) values ('${ADMIN}', '{"full_name":"Admin"}'), ('${USER}', '{"full_name":"Regular"}');
     update public.profiles set role = 'super_admin' where id = '${ADMIN}';
   `);
+  // Phase 10 revokes anon's blanket SELECT on testimonials, so it must run after the blanket grant above
+  // (on real Supabase the default grant exists before any SQL you run, so order is not an issue there).
+  await db.exec(sql('phase10_testimonials.sql'));
 });
 
 // ---------- public read access ----------
@@ -266,6 +271,49 @@ test('visitor testimonial is stored UNPUBLISHED, hidden from the public, and not
   await authed(ADMIN, () => db.query("delete from public.testimonials"));
 });
 
+test('community-service testimonial fields are stored, whitelisted and name preference is applied', async () => {
+  await anon(() => db.query('select public.submit_testimonial($1)', [testi({
+    relationship: 'Volunteer', organization_type: 'NGO / non-profit', location: 'Lahore, Pakistan', program: 'Food drive',
+    period: '2025', impact: 'Reached 300 families', website_url: 'https://example.org', contact_email: 'Hina@Example.org', display_as: 'first',
+  })]));
+  const r = (await db.query("select * from public.testimonials order by created_at desc limit 1")).rows[0];
+  assert.equal(r.name, 'Hina M.');
+  assert.equal(r.submitted_name, 'Hina Malik');
+  assert.equal(r.relationship, 'Volunteer');
+  assert.equal(r.organization_type, 'NGO / non-profit');
+  assert.equal(r.contact_email, 'hina@example.org');
+  assert.equal(r.source, 'website');
+  assert.equal(r.verified, false);
+  assert.ok(r.consent_at);
+  await db.exec('delete from public.testimonials');
+
+  await anon(() => db.query('select public.submit_testimonial($1)', [testi({
+    relationship: 'Hacker', organization_type: '<b>x</b>', website_url: 'javascript:alert(1)', contact_email: 'nope', display_as: 'anonymous',
+  })]));
+  const bad = (await db.query('select * from public.testimonials')).rows[0];
+  assert.equal(bad.name, 'Anonymous');
+  assert.equal(bad.submitted_name, 'Hina Malik');
+  assert.equal(bad.relationship, null);
+  assert.equal(bad.organization_type, null);
+  assert.equal(bad.website_url, null);
+  assert.equal(bad.contact_email, null);
+  await db.exec('delete from public.testimonials');
+});
+
+test('private testimonial columns (real name, email, notes) are unreadable by the public but readable by admin', async () => {
+  await anon(() => db.query('select public.submit_testimonial($1)', [testi({ contact_email: 'a@b.co' })]));
+  await db.exec("update public.testimonials set published = true");
+  const pub = await anon(() => db.query('select name, relationship, impact, verified from public.testimonials'));
+  assert.equal(pub.rows.length, 1);
+  for (const col of ['contact_email', 'submitted_name', 'verification_note', 'consent_at', 'source']) {
+    await rejects(anon(() => db.query(`select ${col} from public.testimonials`)), /permission denied/);
+  }
+  await rejects(anon(() => db.query('select * from public.testimonials')), /permission denied/);
+  const adm = await authed(ADMIN, () => db.query('select contact_email, submitted_name from public.testimonials'));
+  assert.equal(adm.rows[0].contact_email, 'a@b.co');
+  await db.exec('delete from public.testimonials');
+});
+
 test('testimonial submission validates, ignores bad ratings, honeypot, and is rate limited', async () => {
   await rejects(anon(() => db.query('select public.submit_testimonial($1)', [testi({ message: 'too short' })])), /invalid_input/);
   await rejects(anon(() => db.query('select public.submit_testimonial($1)', [testi({ name: ' ' })])), /invalid_input/);
@@ -296,4 +344,78 @@ test('schema, phase2 and phase3 SQL are re-runnable (idempotent)', async () => {
   await db.exec(sql('phase4.sql'));
   assert.equal((await db.query('select count(*)::int n from public.services')).rows[0].n, 6);
   assert.equal((await db.query('select count(*)::int n from public.journey_entries')).rows[0].n, 8);
+});
+
+// ---------- SEO columns (phase7) ----------
+test('phase7: projects and insights carry per-record SEO fields; migration is re-runnable', async () => {
+  await db.exec(sql('phase7_seo.sql'));
+  for (const t of ['projects', 'insights']) {
+    const cols = (await db.query("select column_name from information_schema.columns where table_schema='public' and table_name=$1", [t])).rows.map((r) => r.column_name);
+    for (const c of ['seo_title', 'seo_description', 'og_image', 'noindex']) assert.ok(cols.includes(c), `${t}.${c} missing`);
+  }
+  assert.equal((await db.query("select noindex from public.projects where slug = 'aspire-cr-connect'")).rows[0].noindex, false);
+});
+
+// ---------- email notification claims (phase8) ----------
+test('phase8: claim_notification hands out a fresh submission exactly once, never old or unknown ones', async () => {
+  await anon(() => db.query('select public.submit_project_inquiry($1)', [{ full_name: 'Claim Test', email: 'claim@example.com', description: 'A fresh inquiry', consent: true }]));
+  const code = (await db.query("select inquiry_code from public.project_inquiries where email = 'claim@example.com'")).rows[0].inquiry_code;
+  const first = (await anon(() => db.query("select public.claim_notification('inquiry', $1) r", [code]))).rows[0].r;
+  assert.equal(first.name, 'Claim Test');
+  assert.equal(first.email, 'claim@example.com');
+  assert.equal((await anon(() => db.query("select public.claim_notification('inquiry', $1) r", [code]))).rows[0].r, null, 'second claim must be empty');
+  assert.equal((await anon(() => db.query("select public.claim_notification('inquiry', 'INQ-99999') r"))).rows[0].r, null);
+  // an old submission can never be claimed
+  await db.query("update public.project_inquiries set notified_at = null, created_at = now() - interval '2 hours' where inquiry_code = $1", [code]);
+  assert.equal((await anon(() => db.query("select public.claim_notification('inquiry', $1) r", [code]))).rows[0].r, null);
+  // unknown kinds do nothing
+  assert.equal((await anon(() => db.query("select public.claim_notification('payments', 'x') r"))).rows[0].r, null);
+});
+
+test('phase8: contact messages are claimed by the visitor email once, oldest first', async () => {
+  await anon(() => db.query('select public.submit_contact_message($1)', [{ name: 'Msg Test', email: 'msg@example.com', message: 'Hello there' }]));
+  const a = (await anon(() => db.query("select public.claim_notification('message', 'MSG@example.com') r"))).rows[0].r;
+  assert.equal(a.message, 'Hello there');
+  assert.equal((await anon(() => db.query("select public.claim_notification('message', 'msg@example.com') r"))).rows[0].r, null);
+});
+
+test('phase8: visitors still cannot read the tables directly', async () => {
+  assert.equal((await anon(() => db.query('select 1 from public.project_inquiries'))).rows.length, 0);
+  assert.equal((await anon(() => db.query('select 1 from public.messages'))).rows.length, 0);
+});
+
+// ---------- phase 11: alt-text columns, tag index and the six seeded articles ----------
+test('phase11: adds alt columns, backfills settings/project alt text and seeds valid published articles; re-runnable', async () => {
+  await db.exec(`
+    insert into public.site_settings (key, value) values ('site', '{"name":"Z Haider","seo":{"keywords":"web dev"}}'::jsonb) on conflict (key) do update set value = excluded.value;
+    insert into public.projects (slug, name, thumbnail_url, published) values ('x-proj', 'X', '/projects/cs-home.webp', true) on conflict (slug) do nothing;
+  `);
+  await db.exec(sql('phase11_seo_images_tags.sql'));
+  await db.exec(sql('phase11_seo_images_tags.sql')); // second run must not fail or duplicate
+  const cols = (await db.query(`select column_name from information_schema.columns where table_schema='public' and column_name in ('cover_alt','thumbnail_alt')`)).rows.map((r) => r.column_name).sort();
+  assert.deepEqual(cols, ['cover_alt', 'thumbnail_alt']);
+  const st = (await db.query(`select value from public.site_settings where key='site'`)).rows[0].value;
+  assert.match(st.profileImageAlt, /Portrait of Z Haider/);
+  assert.ok(st.seo.ogImageAlt && st.seo.knowsAbout);
+  assert.match(st.seo.keywords, /^web dev, .*React SEO/);
+  assert.equal((st.seo.keywords.match(/React SEO/g) || []).length, 1, 'keywords are appended once');
+  const proj = (await db.query(`select thumbnail_alt from public.projects where slug='x-proj'`)).rows[0];
+  assert.match(proj.thumbnail_alt, /CS Compass home screen/);
+  const rows = (await db.query(`select slug, title, excerpt, tags, published, reading_minutes, seo_title, seo_description, content from public.insights where slug in (
+    'seo-for-react-apps-prerendering','supabase-row-level-security-beginners','web-image-optimization-alt-text-checklist','plan-college-management-system','netlify-supabase-full-stack-no-server','design-study-tools-students-use')`)).rows;
+  assert.equal(rows.length, 6);
+  for (const r of rows) {
+    assert.ok(r.published && r.reading_minutes >= 2);
+    assert.ok(r.seo_title.length <= 60, `${r.slug} seo_title ${r.seo_title.length}`);
+    assert.ok(r.seo_description.length >= 120 && r.seo_description.length <= 155, `${r.slug} seo_description ${r.seo_description.length}`);
+    assert.ok(r.tags.length >= 3 && r.content.split(/\s+/).length > 450);
+  }
+  // every tag used is shared by at least two articles, so every tag page can be indexed
+  const count = {};
+  rows.forEach((r) => r.tags.forEach((t) => { count[t] = (count[t] || 0) + 1; }));
+  assert.ok(Object.values(count).every((n) => n >= 2), JSON.stringify(count));
+  // visitors can read them, and cannot change them
+  const seen = await anon(() => db.query(`select slug from public.insights where published`));
+  assert.ok(seen.rows.length >= 6);
+  await anon(() => rejects(db.query(`update public.insights set title = 'x' where slug = 'plan-college-management-system'`).then((r) => { if (r.affectedRows === 0) throw new Error('denied'); })));
 });

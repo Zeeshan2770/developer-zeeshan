@@ -5,6 +5,8 @@ import { useAsync } from '../lib/useAsync';
 import { getInsights } from '../lib/api';
 import { Empty, Loading, Reveal, SectionHead } from '../components/ui';
 import { safeUrl } from '../lib/validate';
+import { altText } from '../lib/img';
+import { collectTags } from '../lib/tags';
 
 export const fmtDate = (d) =>
   d ? new Date(d).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
@@ -14,7 +16,7 @@ const hueOf = (s = '') => 205 + (Array.from(s).reduce((a, c) => a + c.charCodeAt
 
 export function Cover({ post, className = '' }) {
   const src = safeUrl(post.cover_url);
-  if (src) return <div className={`blog-cover ${className}`}><img src={src} alt="" loading="lazy" decoding="async" /></div>;
+  if (src) return <div className={`blog-cover ${className}`}><img src={src} alt={altText(post.cover_alt, `Cover image for the article: ${post.title}`)} width="1200" height="630" loading="lazy" decoding="async" /></div>;
   return (
     <div className={`blog-cover ph ${className}`} style={{ '--h': hueOf(post.slug) }} aria-hidden="true">
       <span>{post.category || 'Blog'}</span>
@@ -53,6 +55,7 @@ export default function Blog() {
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('All');
 
+  const tagList = useMemo(() => collectTags(posts).slice(0, 14), [posts]);
   const categories = useMemo(() => ['All', ...Array.from(new Set(posts.map((p) => p.category).filter(Boolean)))], [posts]);
   const filtering = q.trim() !== '' || cat !== 'All';
   const matches = useMemo(() => {
@@ -70,7 +73,7 @@ export default function Blog() {
       <SEO title="Blogs" description="Blog posts on building software, educational technology and what I learn along the way." />
       <section className="page-hero">
         <div className="wrap">
-          <SectionHead eyebrow="Blogs" title="Things I’m learning along the way.">
+          <SectionHead h1 eyebrow="Blogs" title="Things I’m learning along the way.">
             Building projects raises questions that tutorials alone do not always answer. This is where I share practical lessons,
             development notes, design decisions, and ideas worth exploring.
           </SectionHead>
@@ -97,6 +100,12 @@ export default function Blog() {
                   </div>
                 )}
               </div>
+
+              {tagList.length > 0 && !filtering && (
+                <nav className="chip-row tag-cloud" aria-label="Browse articles by tag">
+                  {tagList.map((t) => <Link key={t.slug} to={`/blog/tag/${t.slug}`} className="chip">#{t.name} <small>{t.count}</small></Link>)}
+                </nav>
+              )}
 
               {lead && (
                 <Reveal>

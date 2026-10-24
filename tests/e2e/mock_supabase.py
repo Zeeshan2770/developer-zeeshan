@@ -69,7 +69,7 @@ JOURNEY = [{"id": f"j{i}", "title": t, "description": "Description.", "period": 
            for i, (t, p) in enumerate([("Early interest in technology", ""), ("First projects", "2023"), ("Current focus", "")], start=1)]
 
 INSIGHTS = [{"id": "i1", "slug": "building-cr-connect", "title": "Building CR Connect", "excerpt": "What I learned.", "cover_url": None, "category": "Case study",
-             "tags": ["react"], "published_at": NOW, "reading_minutes": 3, "featured": False, "author": "Zeeshan",
+             "tags": ["react"], "published_at": NOW, "reading_minutes": 3, "featured": False, "published": True, "author": "Zeeshan",
              "content": "## Why\n\nIt started with a problem.\n\n- first\n- second\n\n<script>alert(1)</script>"}]
 
 
@@ -80,6 +80,7 @@ class Mock:
         self.messages = []
         self.booked = []
         self.role = role
+        self.notifies = []
         self.tables = {"projects": list(PROJECTS), "services": SERVICES, "journey_entries": JOURNEY, "insights": INSIGHTS,
                        "testimonials": [], "project_inquiries": [], "messages": [], "appointments": [], "blocked_dates": [],
                        "notifications": [{"id": "n1", "kind": "new_inquiry", "title": "New project inquiry INQ-1001 from Sara", "created_at": NOW}],
@@ -87,6 +88,14 @@ class Mock:
 
     def attach(self, page):
         page.route(re.compile(r"https://mock\.supabase\.co/.*"), self.handle)
+        page.route(re.compile(r".*/\.netlify/functions/notify$"), self.handle_notify)
+
+    def handle_notify(self, route, request):
+        try:
+            self.notifies.append(request.post_data_json)
+        except Exception:
+            self.notifies.append(None)
+        route.fulfill(status=200, headers={"content-type": "application/json"}, body='{"ok":true,"skipped":"email_not_configured"}')
 
     def respond(self, route, status, body, extra=None):
         h = dict(CORS)

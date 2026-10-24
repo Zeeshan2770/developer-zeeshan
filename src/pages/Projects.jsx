@@ -43,7 +43,7 @@ export default function Projects() {
       <SEO title="Projects" description="Case studies of the websites, platforms and management systems I have built." />
       <section className="page-hero">
         <div className="wrap">
-          <SectionHead eyebrow="Projects" title="Projects & case studies">
+          <SectionHead h1 eyebrow="Projects" title="Projects & case studies">
             Real builds, each with the problem, the solution and what I learned.
           </SectionHead>
         </div>

@@ -14,7 +14,7 @@ export default function Services() {
       <SEO title="Services" description="Website development, full-stack applications, educational platforms, management systems and custom digital solutions." />
       <section className="page-hero">
         <div className="wrap">
-          <SectionHead eyebrow="Services" title="How I can help">
+          <SectionHead h1 eyebrow="Services" title="How I can help">
             Clear scope, a real process, and no invented pricing — every project starts with a conversation.
           </SectionHead>
         </div>

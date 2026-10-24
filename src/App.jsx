@@ -12,6 +12,7 @@ const Services = lazy(() => import('./pages/Services'));
 const Journey = lazy(() => import('./pages/Journey'));
 const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
+const BlogTag = lazy(() => import('./pages/BlogTag'));
 const Pay = lazy(() => import('./pages/Pay'));
 const Testimonials = lazy(() => import('./pages/Testimonials'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="services" element={<Services />} />
           <Route path="experience" element={<Journey />} />
           <Route path="blog" element={<Blog />} />
+          <Route path="blog/tag/:tag" element={<BlogTag />} />
           <Route path="blog/:slug" element={<BlogPost />} />
           <Route path="insights" element={<Navigate to="/blog" replace />} />
           <Route path="insights/:slug" element={<OldPost />} />

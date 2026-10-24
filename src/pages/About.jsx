@@ -3,6 +3,7 @@ import SEO from '../components/SEO';
 import { useSettings } from '../lib/SettingsContext';
 import { Reveal } from '../components/ui';
 import { safeUrl } from '../lib/validate';
+import { altText, resized, srcSet } from '../lib/img';
 
 const ABOUT = [
   'I’m Muhammad Zeeshan Haider, a student with a growing interest in programming, software engineering, and the ways technology can solve everyday problems.',
@@ -29,7 +30,7 @@ export default function About() {
       <section className="section tight">
         <div className="wrap about-layout">
           <aside className="about-side">
-            {img && <img src={img} alt={s.name} className="portrait" loading="lazy" />}
+            {img && <img src={resized(img, 640)} srcSet={srcSet(img, [320, 480, 640])} sizes="(max-width: 900px) 90vw, 360px" width="640" height="800" alt={altText(s.profileImageAlt, `Portrait of ${s.name}, ${s.title}`)} className="portrait" loading="lazy" decoding="async" />}
             <p className="mono muted">{s.title}</p>
             <p className="philosophy">{s.tagline}</p>
             <div className="btn-row">

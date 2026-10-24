@@ -49,7 +49,7 @@ export default function Contact() {
     <>
       <SEO title="Contact" description={`Get in touch with ${s.name}.`} />
       <section className="page-hero">
-        <div className="wrap"><SectionHead eyebrow="Contact" title="Let's talk">A message, a project, or a quick session — pick what suits you.</SectionHead></div>
+        <div className="wrap"><SectionHead h1 eyebrow="Contact" title="Let's talk">A message, a project, or a quick session — pick what suits you.</SectionHead></div>
       </section>
       <section className="section tight">
         <div className="wrap contact-layout">

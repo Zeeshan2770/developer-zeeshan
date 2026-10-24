@@ -1,5 +1,5 @@
 // Share previews for client-rendered pages. Link-preview bots (WhatsApp, LinkedIn, X, Slack…) don't run JavaScript,
-// so for /projects/:slug and /blog/:slug this edge function injects real <title>/description/Open Graph tags
+// so for /projects/:slug and /insights/:slug this edge function injects real <title>/description/Open Graph tags
 // into the served HTML. Visitors still get the normal React app. Failures fall through to the untouched page.
 
 export const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -8,6 +8,7 @@ export function injectMeta(html, m) {
   const title = esc(m.title);
   const tags = [
     `<meta name="description" content="${esc(m.description)}" />`,
+    `<meta name="robots" content="${m.noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large'}" />`,
     `<meta property="og:title" content="${title}" />`,
     `<meta property="og:description" content="${esc(m.description)}" />`,
     `<meta property="og:type" content="${esc(m.type || 'article')}" />`,
@@ -19,6 +20,8 @@ export function injectMeta(html, m) {
   return html
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${title}</title>`)
     .replace(/<meta name="description"[^>]*>\s*/i, '')
+    .replace(/<meta (?:property="og:[^"]*"|name="twitter:[^"]*"|name="robots")[^>]*>\s*/gi, '')
+    .replace(/<link rel="canonical"[^>]*>\s*/gi, '')
     .replace('</head>', `    ${tags}\n  </head>`);
 }
 
@@ -34,21 +37,21 @@ export default async (request, context) => {
   if (!sbUrl || !key) return context.next();
 
   try {
-    const table = section === 'projects' ? 'projects' : 'insights' /* blog posts live in the insights table */;
-    const cols = section === 'projects' ? 'name,short_description,thumbnail_url' : 'title,excerpt,cover_url';
-    const [res, page] = await Promise.all([
-      fetch(`${sbUrl}/rest/v1/${table}?select=${cols}&slug=eq.${slug}&published=eq.true&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}` } }),
-      context.next(),
-    ]);
+    const table = section === 'projects' ? 'projects' : 'insights'; // blog posts live in the insights table
+    const base = section === 'projects' ? 'name,short_description,thumbnail_url' : 'title,excerpt,cover_url';
+    const get = (cols) => fetch(`${sbUrl}/rest/v1/${table}?select=${cols}&slug=eq.${slug}&published=eq.true&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+    const [first, page] = await Promise.all([get(`${base},seo_title,seo_description,og_image,noindex`), context.next()]);
+    const res = first.ok ? first : await get(base); // SEO columns missing (migration not run yet): fall back
     const row = res.ok ? (await res.json())[0] : null;
     if (!row) return page;
     const name = Netlify.env.get('SITE_NAME') || 'Muhammad Zeeshan Haider';
     const html = await page.text();
     const out = injectMeta(html, {
-      title: `${row.name || row.title} — ${name}`,
-      description: row.short_description || row.excerpt || '',
-      image: row.thumbnail_url || row.cover_url || '',
-      url: url.href,
+      title: row.seo_title || `${row.name || row.title} — ${name}`,
+      description: row.seo_description || row.short_description || row.excerpt || '',
+      noindex: Boolean(row.noindex),
+      image: (row.og_image || row.thumbnail_url || row.cover_url) ? new URL(row.og_image || row.thumbnail_url || row.cover_url, url.origin).href : '',
+      url: url.origin + url.pathname.replace(/\/+$/, ''),
     });
     const headers = new Headers(page.headers);
     headers.set('content-type', 'text/html; charset=utf-8');

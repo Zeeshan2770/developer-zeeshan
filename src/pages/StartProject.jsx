@@ -8,11 +8,12 @@ import { SectionHead } from '../components/ui';
 const TYPES = ['Website', 'Web application', 'Educational platform', 'Management system', 'Custom solution', 'Digital product', 'Not sure yet'];
 const BUDGETS = ['Not sure yet', 'Small project', 'Medium project', 'Large project', 'Let\'s discuss'];
 const TIMELINES = ['Flexible', 'Within 1 month', '1–3 months', '3+ months'];
+const SITE_STATES = [['', 'Select…'], ['no', 'No, this will be brand new'], ['yes', 'Yes, I already have a website'], ['na', 'Not applicable']];
 const METHODS = ['Email', 'WhatsApp', 'Phone call'];
 
 const INITIAL = {
   full_name: '', email: '', phone: '', organization: '', project_type: '', description: '', problem: '',
-  features: '', budget: '', timeline: '', existing_website: '', additional_info: '', contact_method: 'Email',
+  features: '', budget: '', timeline: '', has_site: '', existing_website: '', additional_info: '', contact_method: 'Email',
   consent: false, website_hp: '',
 };
 
@@ -43,7 +44,8 @@ export default function StartProject() {
     if (!isEmail(f.email)) e.email = 'Enter a valid email address.';
     if (!isPhone(f.phone)) e.phone = 'Enter a valid phone / WhatsApp number.';
     if (clean(f.description, 4000).length < 20) e.description = 'Describe your project in at least a couple of sentences.';
-    if (!isUrlish(f.existing_website)) e.existing_website = 'Enter a valid website address.';
+    if (f.has_site === 'yes' && !clean(f.existing_website, 300)) e.existing_website = 'Please share your current website address.';
+    else if (f.has_site === 'yes' && !isUrlish(f.existing_website)) e.existing_website = 'Enter a valid website address.';
     if (!f.consent) e.consent = 'Please agree so I can contact you about this inquiry.';
     return e;
   };
@@ -61,7 +63,7 @@ export default function StartProject() {
       full_name: clean(f.full_name, 120), email: clean(f.email, 254).toLowerCase(), phone: clean(f.phone, 40),
       organization: clean(f.organization, 160), project_type: clean(f.project_type, 80),
       description: clean(f.description, 4000), problem: clean(f.problem, 3000), features: clean(f.features, 3000),
-      budget: clean(f.budget, 80), timeline: clean(f.timeline, 80), existing_website: clean(f.existing_website, 300),
+      budget: clean(f.budget, 80), timeline: clean(f.timeline, 80), existing_website: f.has_site === 'yes' ? clean(f.existing_website, 300) : f.has_site === 'no' ? 'No existing website (new build)' : f.has_site === 'na' ? 'Not applicable' : '',
       additional_info: clean(f.additional_info, 3000), contact_method: clean(f.contact_method, 40),
       consent: true, website_hp: f.website_hp,
     };
@@ -80,7 +82,7 @@ export default function StartProject() {
   if (done) {
     return (
       <>
-        <SEO title="Inquiry received" />
+        <SEO title="Inquiry received" noindex />
         <section className="section confirm">
           <div className="wrap narrow center">
             <div className="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.500 4.500L19 7.500" /></svg></div>
@@ -111,7 +113,7 @@ export default function StartProject() {
       <SEO title="Start a Project" description="Tell me about the problem you want to solve and I will get back to you." />
       <section className="page-hero">
         <div className="wrap">
-          <SectionHead eyebrow="Start a project" title="Tell me what you want to build">
+          <SectionHead h1 eyebrow="Start a project" title="Tell me what you want to build">
             The more context you share, the better my first reply will be. Required fields are marked *.
           </SectionHead>
         </div>
@@ -138,7 +140,16 @@ export default function StartProject() {
             </Field>
             <Field label="Problem to solve" hint="What is painful or broken today?"><textarea rows={3} value={f.problem} onChange={set('problem')} maxLength={3000} /></Field>
             <Field label="Required features"><textarea rows={3} value={f.features} onChange={set('features')} maxLength={3000} /></Field>
-            <Field label="Existing website" error={errors.existing_website}><input value={f.existing_website} onChange={set('existing_website')} placeholder="example.com" maxLength={300} /></Field>
+            <Field label="Do you already have a website?">
+              <select value={f.has_site} onChange={(e) => setF((x) => ({ ...x, has_site: e.target.value, existing_website: e.target.value === 'yes' ? x.existing_website : '' }))}>
+                {SITE_STATES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </Field>
+            {f.has_site === 'yes' && (
+              <Field label="Your current website" required error={errors.existing_website} hint="So I can see what you have today.">
+                <input value={f.existing_website} onChange={set('existing_website')} placeholder="example.com" inputMode="url" autoComplete="url" maxLength={300} />
+              </Field>
+            )}
           </fieldset>
 
           <fieldset>

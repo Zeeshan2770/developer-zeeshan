@@ -4,9 +4,11 @@ import { useSettings } from '../lib/SettingsContext';
 import { track } from '../lib/api';
 import { safeUrl, socialLinks } from '../lib/validate';
 import { initPointerFx, prefersReducedMotion } from '../lib/fx';
-import { Intro } from './fx';
+import CinematicIntro from './CinematicIntro';
+import { INTRO_KEY, shouldShowIntro } from '../lib/intro';
 import CommandPalette from './CommandPalette';
 import SocialButtons from './Social';
+import ThemeToggle from './ThemeToggle';
 
 const NAV = [
   ['/', 'Home'],
@@ -18,9 +20,11 @@ const NAV = [
   ['/contact', 'Contact'],
 ];
 
-const INTRO_KEY = 'zhq-intro';
+// The entrance runs once per browser session, and only when the visit starts on the home page.
 const wantsIntro = () => {
-  try { return !prefersReducedMotion() && !sessionStorage.getItem(INTRO_KEY); } catch { return false; }
+  try {
+    return shouldShowIntro({ pathname: window.location.pathname, seen: Boolean(sessionStorage.getItem(INTRO_KEY)), reducedMotion: prefersReducedMotion() });
+  } catch { return false; }
 };
 
 export function Logo() {
@@ -44,9 +48,12 @@ export default function Layout() {
   const [scrolled, setScrolled] = useState(false);
   const [showTop, setShowTop] = useState(false);
   const [cmd, setCmd] = useState(false);
-  const [intro, setIntro] = useState(wantsIntro);
+  const [intro, setIntro] = useState(() => (wantsIntro() ? 'on' : false));   // 'on' -> overlay up, 'revealing' -> fading out, false -> gone
   const barRef = useRef(null);
 
+  // index.html hides the page for first-time home visits until this app (and its intro overlay) is on screen.
+  useEffect(() => { document.documentElement.classList.remove('intro-pending'); }, []);
+  const revealIntro = useCallback(() => setIntro((v) => (v ? 'revealing' : v)), []);   // homepage animations start under the fade
   const finishIntro = useCallback(() => {
     try { sessionStorage.setItem(INTRO_KEY, '1'); } catch { /* storage unavailable: fine */ }
     setIntro(false);
@@ -99,8 +106,8 @@ export default function Layout() {
     : null;
 
   return (
-    <div className={`app${intro ? ' intro-on' : ''}`}>
-      {intro && <Intro name={s.name} onDone={finishIntro} />}
+    <div className={`app${intro === 'on' ? ' intro-on' : ''}`}>
+      {intro && <CinematicIntro name={s.name} settingsReady={Boolean(s._ready)} onReveal={revealIntro} onDone={finishIntro} />}
       <div className="scroll-progress" aria-hidden="true"><i ref={barRef} /></div>
       <a href="#main" className="skip">Skip to content</a>
       <header className={`nav${scrolled || open ? ' scrolled' : ''}`}>
@@ -119,9 +126,12 @@ export default function Layout() {
             </button>
             <Link to="/start-project" className="btn btn-primary btn-sm nav-cta" data-magnetic>Start a Project</Link>
           </nav>
-          <button className="burger" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-            <span /><span />
-          </button>
+          <div className="nav-tools">
+            <ThemeToggle />
+            <button className="burger" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+              <span /><span />
+            </button>
+          </div>
         </div>
       </header>
 

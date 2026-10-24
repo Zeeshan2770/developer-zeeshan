@@ -20,6 +20,19 @@
   status = 200
   force = true
 
+# Old /insights URLs (renamed to /blog) keep working and pass their ranking
+[[redirects]]
+  from = "/insights"
+  to = "/blog"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/insights/*"
+  to = "/blog/:splat"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -37,3 +50,37 @@
   for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# Project screenshots and the default share image never change under the same file name: cache them for a month
+# (revalidate after that), so repeat visits and page navigation do not re-download them.
+[[headers]]
+  for = "/projects/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/og-default.png"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "/favicon.ico"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "/favicon-*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "/apple-touch-icon.png"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+
+# Cinematic intro media (video, posters, still portrait): cached for 30 days. Replace a file => give it a new name.
+[[headers]]
+  for = "/media/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"

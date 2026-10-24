@@ -80,10 +80,10 @@ export default function Pay() {
 
   return (
     <>
-      <SEO title="Make a payment" description="Pay by Easypaisa, JazzCash, bank transfer or Raast, then confirm your payment with a short form." />
+      <SEO noindex title="Make a payment" description="Pay by Easypaisa, JazzCash, bank transfer or Raast, then confirm your payment with a short form." />
       <section className="page-hero">
         <div className="wrap">
-          <SectionHead eyebrow="Payments" title="Make a payment">
+          <SectionHead h1 eyebrow="Payments" title="Make a payment">
             Send the amount using one of the methods below, then fill in the short form so I can match your payment.
           </SectionHead>
         </div>

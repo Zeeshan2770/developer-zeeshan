@@ -15,7 +15,8 @@ export const DEFAULT_SETTINGS = {
   waMessage: 'Hello! I found your website and would like to talk about a project.',
   social: { github: '', linkedin: '', extra: [] },  // extra: [{ label, url }] — X, YouTube, Instagram, …
   timezone: 'Asia/Karachi',
-  seo: { defaultDescription: 'I build digital systems that turn ideas into working solutions.', ogImage: '' },
+  seo: { defaultDescription: 'I build digital systems that turn ideas into working solutions.', ogImage: '', titleTemplate: '', keywords: '', locale: 'en_US', twitterHandle: '', googleVerification: '', bingVerification: '', customMeta: [], noindexSite: false, pages: {} },
+  notify: { ownerAlerts: true, autoReply: true, autoReplyNote: '' },  // email alerts; needs RESEND_API_KEY on Netlify (see DEPLOY.md)
   footer: 'Build. Solve. Evolve.',
   copyright: 'Muhammad Zeeshan Haider',
   // Story sections (About page).

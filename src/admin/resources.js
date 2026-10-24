@@ -1,4 +1,5 @@
 import { slugify } from '../lib/validate';
+import { ORG_TYPES, RELATIONSHIPS } from '../lib/testimonials';
 
 // Declarative CMS configuration. The generic <Resource> component renders list + editor from these.
 // field types: text, textarea, number, select, checkbox, url, slug, image, tags (text[]), lines (jsonb string[]),
@@ -12,7 +13,7 @@ export const RESOURCES = {
     columns: [['name', 'Name'], ['category', 'Category'], ['status', 'Status'], ['year', 'Year']],
     publishField: 'published', featureField: 'featured', reorderField: 'sort_order', imageKind: 'project', previewPath: '/projects/',
     children: { table: 'project_features', fk: 'project_id', label: 'Key features', fields: ['title', 'description'] },
-    defaults: { status: 'In Progress', category: 'Web Development', published: false, featured: false, sort_order: 100, technologies: {}, media: [], sections: [] },
+    defaults: { status: 'In Progress', category: 'Web Development', published: false, featured: false, noindex: false, sort_order: 100, technologies: {}, media: [], sections: [] },
     groups: [
       ['Basics', [
         { k: 'name', label: 'Name', type: 'text', required: true },
@@ -22,6 +23,7 @@ export const RESOURCES = {
         { k: 'status', label: 'Status', type: 'select', options: ['Live', 'In Progress', 'Prototype', 'Concept', 'Archived'] },
         { k: 'year', label: 'Year', type: 'number' },
         { k: 'thumbnail_url', label: 'Thumbnail', type: 'image' },
+        { k: 'thumbnail_alt', label: 'Thumbnail alt text (describe what the screenshot shows, ~8–15 words; helps accessibility and Google Images)', type: 'text' },
         { k: 'live_url', label: 'Live URL', type: 'url' },
         { k: 'github_url', label: 'GitHub URL', type: 'url' },
       ]],
@@ -39,6 +41,12 @@ export const RESOURCES = {
       ['Technology & media', [
         { k: 'technologies', label: 'Technologies (comma separated per group)', type: 'techgroups', keys: TECH_KEYS },
         { k: 'media', label: 'Media — one per line: url | caption | image or video  (clips: upload in Media, press “Copy project line”, paste here. The first video also plays on the project card.)', type: 'mediaitems' },
+      ]],
+      ['SEO (search & sharing)', [
+        { k: 'seo_title', label: 'SEO title (leave empty to use the automatic one; ~50–60 characters)', type: 'text' },
+        { k: 'seo_description', label: 'Meta description (leave empty to use the short text; ~120–155 characters)', type: 'textarea', rows: 2 },
+        { k: 'og_image', label: 'Social sharing image (leave empty to use the cover)', type: 'image' },
+        { k: 'noindex', label: 'Hide from search engines (noindex)', type: 'checkbox' },
       ]],
       ['Display', [
         { k: 'sort_order', label: 'Sort order (lower = first)', type: 'number' },
@@ -96,21 +104,28 @@ export const RESOURCES = {
     select: '*', order: [['created_at', false]],
     columns: [['title', 'Title'], ['category', 'Category'], ['published_at', 'Published', 'date']],
     publishField: 'published', featureField: 'featured', imageKind: 'article', onPublish: 'published_at', previewPath: '/blog/',
-    defaults: { published: false, featured: false, author: 'Muhammad Zeeshan Haider', tags: [], content: '' },
+    defaults: { published: false, featured: false, noindex: false, author: 'Muhammad Zeeshan Haider', tags: [], content: '' },
     groups: [
       ['Article', [
         { k: 'title', label: 'Title', type: 'text', required: true },
         { k: 'slug', label: 'Slug', type: 'slug', from: 'title', required: true },
         { k: 'excerpt', label: 'Excerpt', type: 'textarea', rows: 2 },
         { k: 'cover_url', label: 'Cover image', type: 'image' },
-        { k: 'content', label: 'Content (## heading, - list, **bold**, *italic*, `code`, [link](https://…), > quote, blank line = new paragraph)', type: 'textarea', rows: 16 },
+        { k: 'cover_alt', label: 'Cover image alt text (describe the picture, ~8–15 words; helps accessibility and Google Images)', type: 'text' },
+        { k: 'content', label: 'Content (## heading, - list, **bold**, *italic*, `code`, [link](https://…), ![describe the image](https://image-url) on its own line, > quote, blank line = new paragraph)', type: 'textarea', rows: 16 },
         { k: 'category', label: 'Category', type: 'text' },
-        { k: 'tags', label: 'Tags (comma separated)', type: 'tags' },
+        { k: 'tags', label: 'Tags (comma separated, 3–6 per article; reuse the same tags so tag pages fill up. A tag page is indexed once 2 articles share it)', type: 'tags' },
         { k: 'author', label: 'Author', type: 'text' },
         { k: 'published_at', label: 'Publication date', type: 'datetime' },
         { k: 'reading_minutes', label: 'Reading time (minutes, auto if empty)', type: 'number' },
         { k: 'featured', label: 'Featured', type: 'checkbox' },
         { k: 'published', label: 'Published', type: 'checkbox' },
+      ]],
+      ['SEO (search & sharing)', [
+        { k: 'seo_title', label: 'SEO title (leave empty to use the automatic one; ~50–60 characters)', type: 'text' },
+        { k: 'seo_description', label: 'Meta description (leave empty to use the short text; ~120–155 characters)', type: 'textarea', rows: 2 },
+        { k: 'og_image', label: 'Social sharing image (leave empty to use the cover)', type: 'image' },
+        { k: 'noindex', label: 'Hide from search engines (noindex)', type: 'checkbox' },
       ]],
     ],
   },
@@ -138,9 +153,9 @@ export const RESOURCES = {
   testimonials: {
     table: 'testimonials', title: 'Testimonials', singular: 'testimonial', nameField: 'name',
     select: '*', order: [['sort_order', true], ['created_at', false]],
-    columns: [['name', 'Name'], ['organization', 'Organization'], ['rating', 'Rating']],
+    columns: [['name', 'Name'], ['organization', 'Organization'], ['relationship', 'Relationship'], ['rating', 'Rating']],
     publishField: 'published', featureField: 'featured', reorderField: 'sort_order', imageKind: 'testimonial',
-    defaults: { published: false, featured: false, sort_order: 100 },
+    defaults: { published: false, featured: false, verified: false, sort_order: 100, relationship: '', organization_type: '' },
     groups: [
       ['Testimonial', [
         { k: 'name', label: 'Name', type: 'text', required: true },
@@ -150,6 +165,23 @@ export const RESOURCES = {
         { k: 'photo_url', label: 'Photo', type: 'image' },
         { k: 'rating', label: 'Rating (1–5)', type: 'number', min: 1, max: 5 },
         { k: 'project_id', label: 'Related project', type: 'projectref' },
+      ]],
+      ['Community service details (shown publicly)', [
+        { k: 'relationship', label: 'Relationship to the work', type: 'select', options: ['', ...RELATIONSHIPS] },
+        { k: 'organization_type', label: 'Organisation type', type: 'select', options: ['', ...ORG_TYPES] },
+        { k: 'location', label: 'Location (city / area, country)', type: 'text' },
+        { k: 'program', label: 'Service or programme involved', type: 'text' },
+        { k: 'period', label: 'When (e.g. 2025 or Jan–Jun 2025)', type: 'text' },
+        { k: 'impact', label: 'Impact — one line on what changed (max 300 characters)', type: 'textarea', rows: 2 },
+        { k: 'website_url', label: 'Organisation website', type: 'url' },
+        { k: 'verified', label: 'Verified (shows a “Verified” badge — tick only after you have checked with them)', type: 'checkbox' },
+      ]],
+      ['Private notes (never shown on the site)', [
+        { k: 'submitted_name', label: 'Real name as submitted (the public name above may be shortened or “Anonymous”)', type: 'text' },
+        { k: 'contact_email', label: 'Contact email (for verification only)', type: 'text' },
+        { k: 'verification_note', label: 'Verification notes (how / when you confirmed it)', type: 'textarea', rows: 2 },
+      ]],
+      ['Display', [
         { k: 'sort_order', label: 'Sort order', type: 'number' },
         { k: 'featured', label: 'Featured', type: 'checkbox' },
         { k: 'published', label: 'Approved & published', type: 'checkbox' },

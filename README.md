@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Zeeshan HQ — Personal Digital Headquarters
 
 React + Vite + React Router on the front, Supabase (Postgres, Auth, Storage) behind it, deployed on Netlify.
@@ -21,7 +20,7 @@ React + Vite + React Router on the front, Supabase (Postgres, Auth, Storage) beh
 ## Setup
 
 1. Create a Supabase project.
-2. SQL Editor → run `supabase/schema.sql`, then `supabase/phase2.sql`, then `supabase/phase3.sql`, then `supabase/phase4.sql`.
+2. SQL Editor → run `supabase/schema.sql`, then `supabase/phase2.sql`, then `supabase/phase3.sql`, then `supabase/phase4.sql` (later phases are listed in DEPLOY.md; the latest is `phase11_seo_images_tags.sql`).
 3. Authentication → Users → add yourself (email + password), then run:
    `update public.profiles set role = 'super_admin' where id = '<your-user-uuid>';`
 4. Copy `.env.example` to `.env.local` and fill in the URL and **anon** key. Never use the service-role key in the frontend.
@@ -71,7 +70,7 @@ Working days/hours, duration, buffer, max per day, notice window, horizon, purpo
 
 ## Notifications
 
-Every new inquiry, message, appointment, confirmation, cancellation, testimonial and lead stage change writes a row to `notifications` (shown on the dashboard). Email is optional: see `supabase/functions/notify-email/index.ts` for a webhook-driven function with a swappable provider.
+Every new inquiry, message, appointment, confirmation, cancellation, testimonial and lead stage change writes a row to `notifications` (shown on the dashboard). Email is optional: Phase 8 adds owner alerts and visitor confirmations through a Netlify function (see DEPLOY.md, “Phase 8”). The older `supabase/functions/notify-email` webhook still exists but is superseded.
 
 ## Content you must review
 
@@ -90,11 +89,14 @@ Seed text is placeholder wording and invents no clients, numbers or achievements
 - Run `supabase/phase3.sql` after `phase2.sql`. It adds `submit_testimonial`, which lets visitors send a testimonial from the Testimonials page. Submissions are always stored **unpublished**, need explicit consent, are sanitised, honeypot-protected and rate limited (5/hour), and notify you in the admin feed. Nothing shows publicly until you publish it in Admin → Testimonials.
 - In Admin → Projects / Blogs, each row has a **Preview** link (`?preview=1`) for unpublished items. Drafts are returned only to signed-in admins by RLS, the page shows a draft banner, is `noindex`, and does not count views.
 
+## Community-service testimonials (phase 10)
+
+- Run `supabase/phase10_testimonials.sql` after phase 3 (safe to re-run). Testimonials now carry: relationship to the work (beneficiary, volunteer, partner, donor…), organisation type, location, service/programme, period, a one-line **impact**, organisation website and a **Verified** badge.
+- Visitors choose how their name appears (full / first name + initial / anonymous). The choice is applied in the database on submission; the real name is kept privately in `submitted_name`.
+- Private fields (`submitted_name`, `contact_email`, `verification_note`, `consent_at`, `source`) are protected with column-level privileges, so the public API cannot read them. Admin → Testimonials shows them under “Private notes”.
+- If you add another column to `testimonials` later, grant it to `anon` explicitly (see the bottom of the grant list in the SQL file) or it stays private.
+
 ## Custom case-study sections and extra social profiles (phase 4)
 
 - Run `supabase/phase4.sql` (adds `projects.sections`). In Admin → Projects → *Case study* you can add, reorder and remove your own sections (title + text); they appear after "Result" on the project page. Sections missing a title or text are dropped on save.
 - Admin → Settings → Site & brand → *Other profiles*: one `Label | URL` per line (X, YouTube, Instagram…). Only http(s) links are shown, in the footer and on Contact.
-=======
-# developer-zeeshan
-Personal developer portfolio of Muhammad Zeeshan Haider: digital systems, educational platforms, college systems and web applications.
->>>>>>> a7c41e5bcb9557cb47f2a9ad973b65c442dfa4e9

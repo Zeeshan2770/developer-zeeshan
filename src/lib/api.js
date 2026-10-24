@@ -18,11 +18,15 @@ export const getSettings = async () => {
 const PROJECT_CARD_FIELDS =
   'id,slug,name,short_description,category,status,year,thumbnail_url,technologies,featured,sort_order,live_url,media';
 
-export const getProjects = () =>
-  run(
-    supabase?.from('projects').select(PROJECT_CARD_FIELDS).eq('published', true)
-      .order('featured', { ascending: false }).order('sort_order', { ascending: true }),
-  );
+// thumbnail_alt exists after phase11_seo_images_tags.sql; until then the older columns are used.
+export const getProjects = async () => {
+  if (!isConfigured) return empty([]);
+  const q = (cols) => supabase.from('projects').select(cols).eq('published', true)
+    .order('featured', { ascending: false }).order('sort_order', { ascending: true });
+  const first = await q(`${PROJECT_CARD_FIELDS},thumbnail_alt`);
+  if (!first.error) return { data: first.data ?? [], error: null };
+  return run(q(PROJECT_CARD_FIELDS));
+};
 
 // `preview` omits the published filter. It is safe to expose: row-level security only returns drafts to a signed-in admin,
 // so for everyone else a preview request simply finds nothing.
@@ -45,12 +49,15 @@ export const getServices = () =>
 export const getJourney = () =>
   run(supabase?.from('journey_entries').select('*').eq('published', true).order('sort_order'));
 
-export const getInsights = () =>
-  run(
-    supabase?.from('insights')
-      .select('id,slug,title,excerpt,cover_url,category,tags,published_at,reading_minutes,featured')
-      .eq('published', true).order('published_at', { ascending: false }),
-  );
+// cover_alt exists after phase11_seo_images_tags.sql; until then the list falls back to the older columns.
+const INSIGHT_LIST = 'id,slug,title,excerpt,cover_url,category,tags,published_at,reading_minutes,featured';
+export const getInsights = async () => {
+  if (!isConfigured) return empty([]);
+  const q = (cols) => supabase.from('insights').select(cols).eq('published', true).order('published_at', { ascending: false });
+  const first = await q(`${INSIGHT_LIST},cover_alt`);
+  if (!first.error) return { data: first.data ?? [], error: null };
+  return run(q(INSIGHT_LIST));
+};
 
 export const getInsightBySlug = async (slug, preview = false) => {
   if (!isConfigured) return { data: null, error: null };
@@ -59,12 +66,22 @@ export const getInsightBySlug = async (slug, preview = false) => {
   return q.maybeSingle();
 };
 
-export const getTestimonials = () =>
-  run(
-    supabase?.from('testimonials')
-      .select('id,name,role,organization,message,photo_url,rating,featured,projects(name,slug)')
-      .eq('published', true).order('featured', { ascending: false }).order('sort_order'),
-  );
+// Testimonials must never disappear from the site. The first query asks for the community-service columns
+// (phase 10). If the database does not have them yet (phase10_testimonials.sql not run) or the request fails
+// for any reason, fall back to the original columns so approved testimonials still show.
+const TESTI_BASE = 'id,name,role,organization,message,photo_url,rating,featured,projects(name,slug)';
+const TESTI_FULL = 'id,name,role,organization,message,photo_url,rating,featured,relationship,organization_type,location,program,period,impact,website_url,verified,projects(name,slug)';
+const testiQuery = (cols) =>
+  supabase.from('testimonials').select(cols).eq('published', true).order('featured', { ascending: false }).order('sort_order');
+
+export const getTestimonials = async () => {
+  if (!isConfigured) return empty();
+  let res = await testiQuery(TESTI_FULL);
+  if (res.error) res = await testiQuery(TESTI_BASE);
+  if (res.error) res = await supabase.from('testimonials').select('id,name,role,organization,message,photo_url,rating,featured')
+    .eq('published', true).order('featured', { ascending: false }).order('sort_order');
+  return { data: res.data ?? [], error: res.error };
+};
 
 export const getCounts = async () => {
   if (!isConfigured) return null;
@@ -81,17 +98,25 @@ export const getCounts = async () => {
 };
 
 // ---- writes (go through SECURITY DEFINER RPCs; no direct table access for visitors) ----
+// Tell the server a submission was stored so it can send the owner alert + visitor auto-reply (Netlify function; silent if email is not set up).
+export const notifyEmail = (kind, ref) => {
+  try {
+    if (!ref || ref === 'INQ-0000' || ref === 'BK-0000' || typeof fetch !== 'function') return;
+    fetch('/.netlify/functions/notify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, ref }), keepalive: true }).catch(() => {});
+  } catch { /* never block the visitor */ }
+};
+
 export const submitInquiry = async (payload) => {
   if (!isConfigured) return { error: new Error('not_configured') };
   const { data, error } = await supabase.rpc('submit_project_inquiry', { payload });
-  if (!error) track('inquiry_submitted', '/start-project');
+  if (!error) { track('inquiry_submitted', '/start-project'); notifyEmail('inquiry', data); }
   return { data, error };
 };
 
 export const submitMessage = async (payload) => {
   if (!isConfigured) return { error: new Error('not_configured') };
   const { error } = await supabase.rpc('submit_contact_message', { payload });
-  if (!error) track('contact_submitted', '/contact');
+  if (!error) { track('contact_submitted', '/contact'); notifyEmail('message', payload?.email); }
   return { error };
 };
 

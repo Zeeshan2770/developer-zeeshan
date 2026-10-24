@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { NavLink, Route, Routes, Link } from 'react-router-dom';
 import { supabase, isConfigured } from '../lib/supabase';
 import SEO from '../components/SEO';
+import ThemeToggle from '../components/ThemeToggle';
 import { Resource } from './Resource';
 import { RESOURCES } from './resources';
 import './admin.css';
@@ -99,7 +100,7 @@ export default function AdminApp() {
 
   if (auth.loading) return <div className="admin-center"><span className="spinner" /></div>;
   if (!isConfigured) return <div className="admin-center"><div className="banner err">Supabase is not configured. Add the environment variables first.</div></div>;
-  if (!auth.session) return <><SEO title="Admin" /><SignIn onDone={load} /></>;
+  if (!auth.session) return <><SEO title="Admin" noindex /><SignIn onDone={load} /></>;
   if (auth.role !== 'super_admin') {
     return (
       <div className="admin-center">
@@ -114,7 +115,7 @@ export default function AdminApp() {
 
   return (
     <div className="admin">
-      <SEO title="Admin" />
+      <SEO title="Admin" noindex />
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <Link to="/admin" className="side-brand">ZH<span>HQ</span></Link>
         <nav aria-label="Admin">
@@ -127,6 +128,7 @@ export default function AdminApp() {
         </nav>
         <div className="side-foot">
           <Link to="/" target="_blank">View site ↗</Link>
+          <ThemeToggle />
           <button onClick={signOut}>Sign out</button>
         </div>
       </aside>

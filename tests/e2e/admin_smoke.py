@@ -28,6 +28,7 @@ def lead(i, status, **kw):
 
 def new_page(browser, mock, width=1280, height=900, mobile=False):
     ctx = browser.new_context(viewport={"width": width, "height": height}, is_mobile=mobile)
+    ctx.add_init_script("try{sessionStorage.setItem('zhq-intro','1')}catch(e){}")  # the cinematic intro has its own test (intro_smoke.py)
     page = ctx.new_page()
     mock.attach(page)
     errors = []
@@ -65,7 +66,7 @@ with sync_playwright() as p:
 
     nav = page.locator(".sidebar nav a")
     labels = [t.strip() for t in nav.all_inner_texts()]
-    for needle in ["Dashboard", "Projects", "Services", "Journey", "Leads", "Project Inquiries", "Appointments", "Messages", "Testimonials", "Insights", "Media", "Settings"]:
+    for needle in ["Dashboard", "Projects", "Services", "Journey", "Leads", "Project Inquiries", "Appointments", "Messages", "Testimonials", "Blogs", "Media", "Settings"]:
         check(f"sidebar has {needle}", any(l.startswith(needle) for l in labels))
 
     # dashboard
@@ -156,7 +157,7 @@ with sync_playwright() as p:
     page.click(".drawer .x")
 
     # appointments, testimonials, insights, journey, services, media, settings all render
-    for item, expect in [("Appointments", "Blocked dates"), ("Testimonials", "Testimonials"), ("Insights", "Insights"),
+    for item, expect in [("Appointments", "Blocked dates"), ("Testimonials", "Testimonials"), ("Blogs", "Blogs"),
                          ("Journey", "Journey"), ("Services", "Services"), ("Media", "Media"), ("Settings", "Settings")]:
         page.click(f".sidebar a:has-text('{item}')")
         page.wait_for_timeout(500)
@@ -164,6 +165,10 @@ with sync_playwright() as p:
     page.click(".achip:has-text('Booking')")
     check("booking settings show timezone and days", "Timezone" in page.inner_text(".admin-content") and "Available days" in page.inner_text(".admin-content"))
     page.screenshot(path=f"{SHOTS}/admin-settings.png", full_page=True)
+    page.click(".achip:has-text('SEO')")
+    check("SEO tab shows SERP preview, verification and per-page overrides", ".serp" and page.locator(".serp").count() == 1 and page.locator(".seo-page").count() >= 5 and "Bing" in page.inner_text(".admin-content"))
+    page.click(".achip:has-text('Email alerts')")
+    check("Email alerts tab explains Resend setup and has both switches", "RESEND_API_KEY" in page.inner_text(".admin-content") and "confirmation" in page.inner_text(".admin-content"))
     page.click(".achip:has-text('Site & brand')")
     page.fill("textarea[class*=mono]", "YouTube | https://youtube.com/@zeeshan\nBad | javascript:alert(1)")
     page.click("button:has-text('Save')")

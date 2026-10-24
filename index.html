@@ -4,19 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#05070c" />
+    <meta name="author" content="Muhammad Zeeshan Haider" />
+    <meta name="color-scheme" content="dark light" />
+    <script>try{if(location.pathname==="/"&&!sessionStorage.getItem("zhq-intro")&&!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("intro-pending")}catch(e){}</script>
+    <script>try{var t=localStorage.getItem("zhq-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);if(t==="light")document.querySelector('meta[name="theme-color"]').setAttribute("content","#f4f7fc")}}catch(e){}</script>
     <title>Muhammad Zeeshan Haider — Developer · Digital Solutions Builder</title>
     <meta name="description" content="I build digital systems that turn ideas into practical, working solutions. Educational platforms, college systems and web applications." />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    <link rel="icon" href="/favicon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Fonts load without blocking the first paint (text shows in a fallback font, then swaps). -->
     <link
+      rel="preload" as="style" onload="this.onload=null;this.rel='stylesheet'"
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
     />
-      <link rel="alternate" type="application/rss+xml" title="Blogs" href="/rss.xml" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
+    </noscript>
+      <link rel="alternate" type="application/rss+xml" title="Blogs — Muhammad Zeeshan Haider" href="/rss.xml" />
   </head>
   <body>
     <div id="root"></div>
+    <noscript><p style="padding:2rem;font-family:sans-serif">Muhammad Zeeshan Haider — web and full-stack developer. Please enable JavaScript to view this site, or visit the <a href="/blog">blog</a> and <a href="/projects">projects</a> pages.</p></noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

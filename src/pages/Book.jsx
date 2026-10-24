@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { supabase, isConfigured } from '../lib/supabase';
-import { track } from '../lib/api';
+import { track, notifyEmail } from '../lib/api';
 import { clean, isEmail, isPhone } from '../lib/validate';
 import { generateSlots } from '../lib/booking';
 import { Loading, SectionHead } from '../components/ui';
@@ -87,13 +87,14 @@ export default function Book() {
       return;
     }
     track('appointment_requested', '/book');
+    notifyEmail('appointment', data);
     setDone({ code: data, when: slot.start });
   };
 
   if (done) {
     return (
       <>
-        <SEO title="Booking requested" />
+        <SEO title="Booking requested" noindex />
         <section className="section confirm">
           <div className="wrap narrow center">
             <div className="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
@@ -120,7 +121,7 @@ export default function Book() {
       <SEO title="Book a Session" description="Book a session to discuss your project." />
       <section className="page-hero">
         <div className="wrap">
-          <SectionHead eyebrow="Book a session" title="Pick a time that suits you">
+          <SectionHead h1 eyebrow="Book a session" title="Pick a time that suits you">
             Times are shown in your timezone ({visitorTz}).
           </SectionHead>
         </div>

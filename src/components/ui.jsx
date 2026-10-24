@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import ProjectVideo, { firstVideo } from './ProjectVideo';
 import { Link } from 'react-router-dom';
 import { SERVICE_ICONS } from '../lib/defaults';
+import { altText } from '../lib/img';
 
 export function Reveal({ children, className = '', as: Tag = 'div', variant = 'up', delay = 0, ...rest }) {
   const ref = useRef(null);
@@ -29,11 +30,13 @@ export function Skeleton({ className = '' }) {
   return <div className={`skeleton ${className}`} aria-hidden="true" />;
 }
 
-export function SectionHead({ eyebrow, title, children }) {
+// `h1` marks the page's main heading: use it once per page (the hero of inner pages). Everything else stays h2.
+export function SectionHead({ eyebrow, title, children, h1 = false }) {
+  const H = h1 ? 'h1' : 'h2';
   return (
     <div className="section-head">
       {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-      <h2>{title}</h2>
+      <H>{title}</H>
       {children && <p className="muted lead">{children}</p>}
     </div>
   );
@@ -88,7 +91,7 @@ export function ProjectCard({ p, index, large = false, flip = false }) {
     <Link to={`/projects/${p.slug}`} data-tilt className={`card project-card${large ? ' large' : ''}${flip ? ' flip' : ''}`}>
       <div className="thumb">
         {p.thumbnail_url
-          ? <img src={p.thumbnail_url} alt={`${p.name} — preview`} loading="lazy" decoding="async" />
+          ? <img src={p.thumbnail_url} alt={altText(p.thumbnail_alt, `Screenshot of ${p.name}, ${p.category || 'web project'} by the developer`)} width="1200" height="540" loading={index < 2 ? 'eager' : 'lazy'} decoding="async" />
           : <span className="thumb-ph mono">{String(index + 1).padStart(2, '0')}</span>}
         {clip && <ProjectVideo src={clip.url} fade label={`${p.name} — short screen recording`} className="thumb-video" />}
       </div>

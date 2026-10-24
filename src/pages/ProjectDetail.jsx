@@ -7,6 +7,7 @@ import { bumpProjectView, getProjectBySlug, getProjects, track } from '../lib/ap
 import { Empty, Loading, Reveal, StatusPill } from '../components/ui';
 import { safeUrl } from '../lib/validate';
 import NotFound from './NotFound';
+import { altText } from '../lib/img';
 
 const TECH_LABELS = [
   ['frontend', 'Frontend'], ['backend', 'Backend'], ['database', 'Database'],
@@ -56,7 +57,8 @@ export default function ProjectDetail() {
         description={p.short_description}
         image={cover || undefined}
         type="article"
-        jsonLd={{ '@context': 'https://schema.org', '@type': 'CreativeWork', name: p.name, description: p.short_description, dateCreated: p.year ? String(p.year) : undefined }}
+        record={{ title: p.seo_title, description: p.seo_description, image: p.og_image, noindex: p.noindex }}
+        schema={{ kind: 'project', data: { name: p.name, description: p.seo_description || p.short_description, image: cover || undefined, year: p.year } }}
       />
 
       <section className="cs-hero">
@@ -79,7 +81,7 @@ export default function ProjectDetail() {
         {p.role && <div><span className="muted">My role</span><strong>{p.role}</strong></div>}
       </section>
 
-      {cover && <div className="wrap"><img className="cs-cover" src={cover} alt={`${p.name} preview`} decoding="async" /></div>}
+      {cover && <div className="wrap"><img className="cs-cover" src={cover} alt={altText(p.thumbnail_alt, `Screenshot of ${p.name}, ${p.category || 'web project'}`)} width="1200" height="540" fetchPriority="high" decoding="async" /></div>}
 
       <div className="wrap cs">
         <Block eyebrow="01" title="The problem" text={p.problem} />
@@ -127,7 +129,7 @@ export default function ProjectDetail() {
                   <figure key={i} className="shot">
                     {m.type === 'video' || isVideoUrl(m.url)
                       ? <ProjectVideo src={src} controls label={m.caption || `${p.name} — short screen recording`} />
-                      : <img src={src} alt={m.caption || `${p.name} media ${i + 1}`} loading="lazy" decoding="async" />}
+                      : <img src={src} alt={altText(m.caption, `${p.name} screenshot ${i + 1}`)} width="1200" height="540" loading="lazy" decoding="async" />}
                     {m.caption && <figcaption className="muted">{m.caption}</figcaption>}
                   </figure>
                 );

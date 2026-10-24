@@ -10,7 +10,7 @@ export async function handler() {
   if (url && key) {
     try {
       const r = await fetch(
-        `${url}/rest/v1/insights?select=slug,title,excerpt,published_at,author&published=eq.true&order=published_at.desc&limit=30`,
+        `${url}/rest/v1/insights?select=slug,title,excerpt,published_at,author,category,tags&published=eq.true&order=published_at.desc&limit=30`,
         { headers: { apikey: key, Authorization: `Bearer ${key}` } },
       );
       posts = r.ok ? await r.json() : [];
@@ -23,12 +23,17 @@ export async function handler() {
       <guid isPermaLink="true">${esc(`${site}/blog/${p.slug}`)}</guid>
       ${p.published_at ? `<pubDate>${new Date(p.published_at).toUTCString()}</pubDate>` : ''}
       <description>${esc(p.excerpt || '')}</description>
+      ${p.author ? `<dc:creator>${esc(p.author)}</dc:creator>` : ''}
+      ${[p.category, ...(p.tags || [])].filter(Boolean).map((c) => `<category>${esc(c)}</category>`).join('')}
     </item>`).join('\n');
   const body = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>${esc(name)} — Blogs</title>
     <link>${esc(`${site}/blog`)}</link>
+    <atom:link href="${esc(`${site}/rss.xml`)}" rel="self" type="application/rss+xml" />
+    <language>en</language>
+    ${posts[0]?.published_at ? `<lastBuildDate>${new Date(posts[0].published_at).toUTCString()}</lastBuildDate>` : ''}
     <description>Practical lessons, development notes and ideas from building digital projects.</description>
 ${items}
   </channel>

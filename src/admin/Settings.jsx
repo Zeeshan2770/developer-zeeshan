@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { DEFAULT_SETTINGS } from '../lib/defaults';
 import { ImageField, Toggle, useToast } from './adminui';
 import { logActivity } from './lib';
+import { SEO_PAGES, DEFAULT_TITLE_TEMPLATE } from '../lib/seo';
+import SeoHealth from './SeoHealth';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const BOOKING_DEFAULT = {
@@ -48,7 +50,7 @@ export default function Settings() {
     <div>
       <div className="page-head"><div><h1>Settings</h1><p className="muted">Everything personal on the site is edited here — nothing is hard-coded.</p></div></div>
       <div className="chips">
-        {[['site', 'Site & brand'], ['story', 'About story'], ['booking', 'Booking'], ['seo', 'SEO & footer']].map(([k, l]) => (
+        {[['site', 'Site & brand'], ['story', 'About story'], ['booking', 'Booking'], ['seo', 'SEO & footer'], ['email', 'Email alerts']].map(([k, l]) => (
           <button key={k} className={`achip ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{l}</button>
         ))}
       </div>
@@ -61,7 +63,8 @@ export default function Settings() {
             <F label="Philosophy line"><input className="ainput" value={site.tagline} onChange={(e) => s({ tagline: e.target.value })} /></F>
             <F label="Hero statement"><textarea className="ainput" rows={2} value={site.heroStatement} onChange={(e) => s({ heroStatement: e.target.value })} /></F>
             <F label="Hero supporting text"><textarea className="ainput" rows={2} value={site.heroSupport} onChange={(e) => s({ heroSupport: e.target.value })} /></F>
-            <F label="Profile image"><ImageField value={site.profileImage} onChange={(v) => s({ profileImage: v })} kind="profile" /></F>
+            <F label="Profile image" hint="Uploads are resized to 1100 px WebP automatically, so the hero photo loads fast. Use a portrait (4:5) photo."><ImageField value={site.profileImage} onChange={(v) => s({ profileImage: v })} kind="profile" /></F>
+            <F label="Profile image alt text" hint="Describe the photo for screen readers and Google Images, e.g. “Muhammad Zeeshan Haider, web developer, in a dark jacket”."><input className="ainput" maxLength={160} value={site.profileImageAlt || ''} onChange={(e) => s({ profileImageAlt: e.target.value })} /></F>
             <F label="Logo"><ImageField value={site.logo} onChange={(v) => s({ logo: v })} kind="logo" /></F>
           </fieldset>
           <fieldset><legend>Availability</legend>
@@ -143,20 +146,96 @@ export default function Settings() {
         </form>
       )}
 
-      {tab === 'seo' && (
-        <form className="editor narrow-ed" onSubmit={(e) => { e.preventDefault(); save('site', site); }}>
-          <fieldset><legend>SEO defaults</legend>
-            <F label="Default description"><textarea className="ainput" rows={2} value={site.seo?.defaultDescription || ''} onChange={(e) => s({ seo: { ...site.seo, defaultDescription: e.target.value } })} /></F>
-            <F label="Default social sharing image"><ImageField value={site.seo?.ogImage} onChange={(v) => s({ seo: { ...site.seo, ogImage: v } })} kind="other" /></F>
-            <F label="Favicon URL"><input className="ainput" value={site.favicon || ''} onChange={(e) => s({ favicon: e.target.value })} /></F>
-          </fieldset>
-          <fieldset><legend>Footer</legend>
-            <F label="Footer line"><input className="ainput" value={site.footer} onChange={(e) => s({ footer: e.target.value })} /></F>
-            <F label="Copyright name"><input className="ainput" value={site.copyright} onChange={(e) => s({ copyright: e.target.value })} /></F>
-          </fieldset>
-          <div className="editor-foot"><button className="abtn solid" disabled={saving === 'site'}>Save</button></div>
-        </form>
-      )}
+      {tab === 'email' && (() => {
+        const n = { ownerAlerts: true, autoReply: true, autoReplyNote: '', ...(site.notify || {}) };
+        const setN = (patch) => s({ notify: { ...n, ...patch } });
+        return (
+          <form className="editor narrow-ed" onSubmit={(e) => { e.preventDefault(); save('site', site); }}>
+            <fieldset><legend>Email alerts</legend>
+              <p className="muted small">When someone sends a project inquiry, a contact message or a booking request, an email can be sent to you, and a short confirmation to them. Sending uses your own Resend account: add <code>RESEND_API_KEY</code> and <code>NOTIFY_FROM</code> in Netlify (steps in DEPLOY.md). Until then these switches do nothing and everything still appears in Leads, Messages and Appointments.</p>
+              <div className="afield inline"><span>Email me when a new inquiry, message or booking arrives</span><Toggle on={n.ownerAlerts} label="Owner alerts" onChange={(v) => setN({ ownerAlerts: v })} /></div>
+              <p className="muted small">Goes to the address in Site &amp; brand, or <code>NOTIFY_TO_EMAIL</code> if you set it in Netlify.</p>
+              <div className="afield inline"><span>Send the visitor a short “I received it” confirmation</span><Toggle on={n.autoReply} label="Visitor confirmation" onChange={(v) => setN({ autoReply: v })} /></div>
+              <F label="Extra line in the confirmation (optional)" hint="For example: where to find your portfolio or how you prefer to be contacted. Plain text.">
+                <textarea className="ainput" rows={3} maxLength={400} value={n.autoReplyNote} onChange={(e) => setN({ autoReplyNote: e.target.value })} />
+              </F>
+            </fieldset>
+            <div className="editor-foot"><button className="abtn solid" disabled={saving === 'site'}>{saving === 'site' ? 'Saving…' : 'Save email settings'}</button></div>
+          </form>
+        );
+      })()}
+
+      {tab === 'seo' && (() => {
+        const seo = site.seo || {};
+        const setSeo = (patch) => s({ seo: { ...seo, ...patch } });
+        const setPage = (path, patch) => setSeo({ pages: { ...(seo.pages || {}), [path]: { ...((seo.pages || {})[path] || {}), ...patch } } });
+        const tpl = seo.titleTemplate || DEFAULT_TITLE_TEMPLATE;
+        const homeTitle = `${site.name} — ${site.title}`;
+        const Count = ({ v, lo, hi }) => { const n = (v || '').length; return <small className={n && (n < lo || n > hi) ? 'seo-count warn' : 'seo-count'}>{n} characters · aim for {lo}–{hi}</small>; };
+        const customMeta = (seo.customMeta || []).map((m) => `${m.name} | ${m.content}`).join('\n');
+        return (
+          <form className="editor narrow-ed" onSubmit={(e) => { e.preventDefault(); save('site', site); }}>
+            <SeoHealth site={site} />
+            <fieldset><legend>Search appearance (defaults)</legend>
+              <div className="serp" aria-label="Search result preview">
+                <span className="serp-url">{(import.meta.env.VITE_SITE_URL || 'https://your-site.com').replace(/^https?:\/\//, '')}</span>
+                <span className="serp-title">{(seo.pages?.['/']?.title || homeTitle).slice(0, 62)}</span>
+                <span className="serp-desc">{(seo.pages?.['/']?.description || seo.defaultDescription || '').slice(0, 158)}</span>
+              </div>
+              <F label="Title format for inner pages" hint="%s is the page name, %name is your name. Example: About — Muhammad Zeeshan Haider"><input className="ainput" value={seo.titleTemplate ?? ''} placeholder={DEFAULT_TITLE_TEMPLATE} onChange={(e) => setSeo({ titleTemplate: e.target.value })} /></F>
+              <small className="muted">Preview: {tpl.replace('%s', 'About').replace('%name', site.name)}</small>
+              <F label="Default description"><textarea className="ainput" rows={2} value={seo.defaultDescription || ''} onChange={(e) => setSeo({ defaultDescription: e.target.value })} /></F>
+              <Count v={seo.defaultDescription} lo={70} hi={155} />
+              <F label="Default social sharing image" hint="Shown when a link is shared on WhatsApp, LinkedIn, X and similar. 1200×630 works best."><ImageField value={seo.ogImage} onChange={(v) => setSeo({ ogImage: v })} kind="other" /></F>
+              <F label="Social sharing image description (alt text)" hint="One sentence describing the sharing image."><input className="ainput" maxLength={160} value={seo.ogImageAlt || ''} onChange={(e) => setSeo({ ogImageAlt: e.target.value })} placeholder="Muhammad Zeeshan Haider — web and full-stack developer" /></F>
+              <F label="Keywords (comma separated)" hint="Low weight for Google today, but some tools and engines still read it."><input className="ainput" value={seo.keywords || ''} onChange={(e) => setSeo({ keywords: e.target.value })} placeholder="web developer, full-stack, educational platforms" /></F>
+              <F label="Topics you are known for (comma separated)" hint="Added to your Person structured data (knowsAbout), e.g. React, Supabase, educational technology."><input className="ainput" value={Array.isArray(seo.knowsAbout) ? seo.knowsAbout.join(', ') : seo.knowsAbout || ''} onChange={(e) => setSeo({ knowsAbout: e.target.value })} placeholder="React, Supabase, educational technology, web development" /></F>
+              <div className="form-grid2">
+                <F label="Language / locale"><input className="ainput" value={seo.locale || ''} placeholder="en_US" onChange={(e) => setSeo({ locale: e.target.value })} /></F>
+                <F label="X (Twitter) handle"><input className="ainput" value={seo.twitterHandle || ''} placeholder="@yourhandle" onChange={(e) => setSeo({ twitterHandle: e.target.value })} /></F>
+              </div>
+              <F label="Favicon URL"><input className="ainput" value={site.favicon || ''} onChange={(e) => s({ favicon: e.target.value })} /></F>
+            </fieldset>
+
+            <fieldset><legend>Search engine tools</legend>
+              <p className="muted small">Paste only the verification code (the value of <code>content</code>) from Google Search Console or Bing Webmaster Tools. Then submit your sitemap there.</p>
+              <div className="form-grid2">
+                <F label="Google Search Console code"><input className="ainput" value={seo.googleVerification || ''} onChange={(e) => setSeo({ googleVerification: e.target.value.trim() })} /></F>
+                <F label="Bing Webmaster code"><input className="ainput" value={seo.bingVerification || ''} onChange={(e) => setSeo({ bingVerification: e.target.value.trim() })} /></F>
+              </div>
+              <F label="Extra meta tags (one per line: name | content)" hint="For other tools, for example: p:domain_verify | abc123. Only plain name/content tags are accepted."><textarea className="ainput" rows={3} value={customMeta}
+                onChange={(e) => setSeo({ customMeta: e.target.value.split('\n').map((l) => l.split('|')).map(([n, ...c]) => ({ name: (n || '').trim(), content: c.join('|').trim() })).filter((m) => /^[\w:.-]{1,60}$/.test(m.name) && m.content) })} /></F>
+              <p className="muted small">Your sitemap: <code>/sitemap.xml</code> (updates automatically with published projects and articles). Robots rules: <code>/robots.txt</code>.</p>
+              <div className="afield inline"><span>Hide the whole site from search engines</span><Toggle on={!!seo.noindexSite} label="Hide site from search" onChange={(v) => setSeo({ noindexSite: v })} /></div>
+              {seo.noindexSite && <p className="seo-count warn">The site is hidden from Google and removed from the sitemap. Turn this off before launch.</p>}
+            </fieldset>
+
+            <fieldset><legend>Page by page</legend>
+              <p className="muted small">Leave a field empty to use the automatic text. Projects and articles have their own SEO section in their editors.</p>
+              {SEO_PAGES.map(([path, label]) => {
+                const pg = seo.pages?.[path] || {};
+                return (
+                  <details key={path} className="seo-page">
+                    <summary><b>{label}</b> <span className="muted mono">{path}</span>{pg.noindex && <span className="badge red">noindex</span>}{(pg.title || pg.description) && <span className="badge amber">custom</span>}</summary>
+                    <F label="SEO title"><input className="ainput" value={pg.title || ''} onChange={(e) => setPage(path, { title: e.target.value })} /></F>
+                    <Count v={pg.title} lo={30} hi={60} />
+                    <F label="Meta description"><textarea className="ainput" rows={2} value={pg.description || ''} onChange={(e) => setPage(path, { description: e.target.value })} /></F>
+                    <Count v={pg.description} lo={70} hi={155} />
+                    <F label="Social sharing image URL (optional)"><input className="ainput" value={pg.image || ''} onChange={(e) => setPage(path, { image: e.target.value })} /></F>
+                    <div className="afield inline"><span>Hide this page from search engines</span><Toggle on={!!pg.noindex} label={`Hide ${label}`} onChange={(v) => setPage(path, { noindex: v })} /></div>
+                  </details>
+                );
+              })}
+            </fieldset>
+
+            <fieldset><legend>Footer</legend>
+              <F label="Footer line"><input className="ainput" value={site.footer} onChange={(e) => s({ footer: e.target.value })} /></F>
+              <F label="Copyright name"><input className="ainput" value={site.copyright} onChange={(e) => s({ copyright: e.target.value })} /></F>
+            </fieldset>
+            <div className="editor-foot"><button className="abtn solid" disabled={saving === 'site'}>{saving === 'site' ? 'Saving…' : 'Save SEO settings'}</button><span className="muted small">Search engines pick up changes after the next deploy (static pages) or the next crawl.</span></div>
+          </form>
+        );
+      })()}
       {toast}
     </div>
   );

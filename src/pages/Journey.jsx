@@ -33,7 +33,7 @@ export default function Journey() {
       <SEO title="Journey" description="An honest look at how I got here and where I am heading." />
       <section className="page-hero">
         <div className="wrap">
-          <SectionHead eyebrow="Journey" title="Still building. Always evolving.">
+          <SectionHead h1 eyebrow="Journey" title="Still building. Always evolving.">
             Not a corporate résumé — an honest timeline of how I learn and what I have built.
           </SectionHead>
         </div>

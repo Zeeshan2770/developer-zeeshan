@@ -9,6 +9,7 @@ import { prefersReducedMotion } from '../lib/fx';
 import { Empty, Icon, Loading, ProjectCard, Reveal, SectionHead, Skeleton } from '../components/ui';
 import { safeUrl, socialLinks } from '../lib/validate';
 import SocialButtons from '../components/Social';
+import { altText, resized, srcSet } from '../lib/img';
 
 const PRINCIPLES = [
   ['Understand before building', 'I start by identifying what a project needs to accomplish, who will use it, and what would make the experience genuinely useful.'],
@@ -32,7 +33,9 @@ const TICKER = ['WEBSITES', 'EDUCATIONAL PLATFORMS', 'ADMIN SYSTEMS', 'STUDY TOO
 // or from /portrait.webp in /public. If neither exists a "ZH" monogram is shown so the layout never breaks.
 function HeroStage() {
   const s = useSettings();
-  const src = safeUrl(s.profileImage) || '/portrait.webp';
+  // Do not guess a file name before the settings are known: the old '/portrait.webp' guess cost a wasted request
+  // (and showed the monogram) while the real photo URL was still being fetched.
+  const src = safeUrl(s.profileImage) || (s._ready ? '/portrait.webp' : null);
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
   return (
@@ -43,8 +46,9 @@ function HeroStage() {
       <div className="photo-wrap">
         <div className="photo-tilt">
           <div className="photo">
-            {!failed ? (
-              <img src={src} alt={`Portrait of ${s.name}`} fetchPriority="high" decoding="async" onError={() => setFailed(true)} />
+            {src && !failed ? (
+              <img src={resized(src, 960)} srcSet={srcSet(src)} sizes="(max-width: 760px) 100vw, 40vw" width="800" height="1000"
+                alt={altText(s.profileImageAlt, `Portrait of ${s.name}, ${s.title}`)} fetchPriority="high" loading="eager" decoding="async" onError={() => setFailed(true)} />
             ) : (
               <div className="photo-mono" aria-hidden="true"><b>ZH</b></div>
             )}
@@ -97,15 +101,7 @@ export default function Home() {
 
   return (
     <>
-      <SEO
-        jsonLd={{
-          '@context': 'https://schema.org',
-          '@type': 'Person',
-          name: s.name,
-          jobTitle: 'Developer',
-          description: 'Developer building websites, educational platforms and practical digital systems.',
-        }}
-      />
+      <SEO />
 
       <section className="hero hero-cine hero-v3" ref={heroRef}>
         <NetworkCanvas />
@@ -299,7 +295,7 @@ export default function Home() {
                     {t.rating && <div className="stars" aria-label={`${t.rating} out of 5`}>{'★'.repeat(t.rating)}{'☆'.repeat(5 - t.rating)}</div>}
                     <blockquote>{t.message}</blockquote>
                     <figcaption>
-                      {photo ? <img src={photo} alt="" loading="lazy" /> : <span className="testi-av" aria-hidden="true">{(t.name || '?').trim().charAt(0).toUpperCase()}</span>}
+                      {photo ? <img src={photo} alt={`Photo of ${t.name}`} width="44" height="44" loading="lazy" decoding="async" /> : <span className="testi-av" aria-hidden="true">{(t.name || '?').trim().charAt(0).toUpperCase()}</span>}
                       <span><strong>{t.name}</strong>{who && <span className="muted">{who}</span>}</span>
                     </figcaption>
                   </Reveal>
